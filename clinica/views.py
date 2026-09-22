@@ -9,6 +9,7 @@ from .serializers import (
     MascotaSerializer,
     ConsultaVeterinariaSerializer,
 )
+from django.core.paginator import Paginator
 
 
 # Propietarios
@@ -29,12 +30,39 @@ def api_propietarios(request):
 
 # Mascotas
 # ------------------------------------------------------------------
+
 @api_view(['GET', 'POST'])
 def api_mascotas(request):
     if request.method == 'GET':
         mascotas = Mascota.objects.all().order_by('id')
-        serializer = MascotaSerializer(mascotas, many=True)
-        return Response(serializer.data)
+
+        # --- Filtros por query params ---
+        especie = request.query_params.get('especie')
+        if especie:
+            mascotas = mascotas.filter(especie=especie)
+
+        activas = request.query_params.get('activas')
+        if activas is not None:
+            valor = activas.lower() == 'true'
+            mascotas = mascotas.filter(activo=valor)
+
+        propietario_id = request.query_params.get('propietario')
+        if propietario_id:
+            mascotas = mascotas.filter(propietario_id=propietario_id)
+
+        # --- Paginación ---
+        page_number = request.query_params.get('page', 1)
+        paginator = Paginator(mascotas, 5)
+        page_obj = paginator.get_page(page_number)
+
+        serializer = MascotaSerializer(page_obj.object_list, many=True)
+
+        return Response({
+            'pagina_actual': page_obj.number,
+            'total_paginas': paginator.num_pages,
+            'total_mascotas': paginator.count,
+            'resultados': serializer.data,
+        })
 
     if request.method == 'POST':
         serializer = MascotaSerializer(data=request.data)
