@@ -11,6 +11,40 @@ from .serializers import (
 )
 from django.core.paginator import Paginator
 
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.decorators import authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+
+@api_view(['GET'])
+def contador_sesion(request):
+    visitas = request.session.get('visitas', 0) + 1
+    request.session['visitas'] = visitas
+    return Response({
+        'accesos_en_esta_sesion': visitas
+    })
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def perfil(request):
+    return Response({
+        'id': request.user.id,
+        'username': request.user.username,
+        'email': request.user.email,
+    })
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAdminUser])
+def estadisticas(request):
+    return Response({
+        'total_propietarios': Propietario.objects.count(),
+        'total_mascotas': Mascota.objects.count(),
+        'mascotas_activas': Mascota.objects.filter(activo=True).count(),
+        'total_consultas': ConsultaVeterinaria.objects.count(),
+    })
+
 
 # Propietarios
 # ------------------------------------------------------------------
